@@ -1,0 +1,147 @@
+---
+title: "Sumo odds (scraped from Marathonbet)"
+output: 
+  flexdashboard::flex_dashboard:
+    navbar:
+      - { title: "Marathonbet", href: "https://www.marathonbet.com/en/betting/Sumo/?menu=954952" }
+      - { title: "Author", href: "http://zhilkin.com" }
+    source_code: embed
+runtime: shiny
+---
+
+
+```{r}
+library(flexdashboard)
+library(plotly)
+library(shiny)
+library(stringr)
+library(tidyverse)
+```
+
+
+```{r}
+output$file_selector <- renderUI({
+	files <- rev(list.files(pattern = "^\\d{6}\\.csv$"))
+	
+	selectInput(
+		inputId = "file_name",
+		label = NULL,
+		choices = set_names(files, substr(files, 1, 6))
+	)
+})
+```
+
+
+```{r}
+odds <- reactive({
+	req(input$file_name)
+	
+	read_csv(input$file_name) %>% 
+		group_by(rikishi1, rikishi2) %>% 
+		arrange(ts) %>% 
+		mutate(odds1_lag = lag(odds1), odds1_lead = lead(odds1), odds2_lag = lag(odds2), odds2_lead = lead(odds2)) %>% 
+		filter(is.na(odds1_lag) | is.na(odds2_lag) | is.na(odds1_lead) | is.na(odds2_lead) | odds1 != odds1_lag | odds2 != odds2_lag) %>% 
+		select(rikishi1, odds1, rikishi2, odds2, ts)
+})
+```
+
+
+```{r}
+output$rikishi_selector <- renderUI({
+	req(odds())
+	
+	list(
+		br(),
+		checkboxGroupInput(
+			inputId = "rikishi",
+			label = NULL,
+			choices = c(odds()$rikishi1, odds()$rikishi2) %>% unique() %>% sort(),
+			selected = odds() %>% 
+				transmute(
+					favourite = ifelse(odds1 < odds2, rikishi1, rikishi2),
+					odds = ifelse(odds1 < odds2, odds1, odds2)
+				) %>% 
+				group_by(favourite) %>% 
+				summarise(odds = mean(odds)) %>% 
+				arrange(odds) %>% 
+				.$favourite %>% 
+				head(1)
+		)
+	)
+})
+```
+
+
+```{r}
+output$plot <- renderPlotly({
+	req(length(input$rikishi) > 0)
+
+	odds() %>% 
+		group_by(rikishi1, rikishi2) %>% 
+		filter(rikishi1 %in% input$rikishi | rikishi2 %in% input$rikishi) %>% 
+		plot_ly(
+			color = ~paste0(rikishi1, "-", rikishi2),
+			x = ~as.POSIXct(ts)
+		) %>% 
+		add_trace(
+			hoverinfo = "text",
+			line = list(shape = "hv", width = 1),
+			mode = "lines+markers",
+			marker = list(size = 3),
+			text = ~sprintf("<b>%.4g %s</b> %s %s", odds1, rikishi1, rikishi2, format(ts, "%Y-%m-%d %H:%M")),
+			type = "scatter",
+			y = ~odds1
+		) %>% 
+		add_trace(
+			hoverinfo = "text",
+			line = list(shape = "hv", width = 1),
+			marker = list(size = 3),
+			mode = "lines+markers",
+			text = ~sprintf("<b>%.4g %s</b> %s %s", odds2, rikishi2, rikishi1, format(ts, "%Y-%m-%d %H:%M")),
+			type = "scatter",
+			y = ~odds2
+		) %>% 
+		layout(
+			hovermode = "x",
+			showlegend = FALSE,
+			xaxis = list(
+				title = ""
+			),
+			yaxis = list(
+				dtick = 1,
+				rangemode = "tozero",
+				title = ""
+			)
+		) %>% config(
+			collaborate = FALSE,
+			displaylogo = FALSE,
+			modeBarButtonsToRemove = c(
+				"autoScale2d",
+				"hoverClosestCartesian",
+				"hoverCompareCartesian",
+				"lasso2d",
+				"select2d",
+				"toggleSpikelines",
+				"zoomIn2d",
+				"zoomOut2d"
+			)
+		)
+})
+```
+
+
+Column {.sidebar}
+-----------------------------------------------------------------------
+
+```{r}
+uiOutput("file_selector")
+uiOutput("rikishi_selector")
+```
+
+
+Column
+-----------------------------------------------------------------------
+
+```{r}
+plotlyOutput("plot", height = "100%")
+```
