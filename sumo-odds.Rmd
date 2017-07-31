@@ -4,7 +4,7 @@ output:
   flexdashboard::flex_dashboard:
     navbar:
       - { title: "Marathonbet", href: "https://www.marathonbet.com/en/betting/Sumo/?menu=954952" }
-      - { title: "Author", href: "http://zhilkin.com" }
+      - { title: "Author", href: "https://github.com/Cervus1983" }
     source_code: embed
 runtime: shiny
 ---
@@ -20,23 +20,28 @@ library(tidyverse)
 
 
 ```{r}
+# file selector (csv/*.csv)
 output$file_selector <- renderUI({
-	files <- rev(list.files(pattern = "^\\d{6}\\.csv$"))
-	
 	selectInput(
 		inputId = "file_name",
-		label = NULL,
-		choices = set_names(files, substr(files, 1, 6))
+		label = "File with odds:",
+		choices = rev(
+			list.files(
+				path = "csv",
+				pattern = "^\\d{6}\\.csv$"
+			)
+		)
 	)
 })
 ```
 
 
 ```{r}
+# read & deduplicate selected CSV file
 odds <- reactive({
 	req(input$file_name)
 	
-	read_csv(input$file_name) %>% 
+	read_csv(paste("csv", input$file_name, sep = "/")) %>% 
 		group_by(rikishi1, rikishi2) %>% 
 		arrange(ts) %>% 
 		mutate(odds1_lag = lag(odds1), odds1_lead = lead(odds1), odds2_lag = lag(odds2), odds2_lead = lead(odds2)) %>% 
@@ -47,6 +52,7 @@ odds <- reactive({
 
 
 ```{r}
+# checkbox for each rikishi (top dog is selected initially)
 output$rikishi_selector <- renderUI({
 	req(odds())
 	
@@ -54,7 +60,7 @@ output$rikishi_selector <- renderUI({
 		br(),
 		checkboxGroupInput(
 			inputId = "rikishi",
-			label = NULL,
+			label = "Rikishi to show:",
 			choices = c(odds()$rikishi1, odds()$rikishi2) %>% unique() %>% sort(),
 			selected = odds() %>% 
 				transmute(
@@ -62,9 +68,9 @@ output$rikishi_selector <- renderUI({
 					odds = ifelse(odds1 < odds2, odds1, odds2)
 				) %>% 
 				group_by(favourite) %>% 
-				summarise(odds = mean(odds)) %>% 
-				arrange(odds) %>% 
-				.$favourite %>% 
+				summarise(mean(odds)) %>% 
+				arrange(`mean(odds)`) %>% 
+				pull(favourite) %>% 
 				head(1)
 		)
 	)
@@ -73,6 +79,7 @@ output$rikishi_selector <- renderUI({
 
 
 ```{r}
+# finally, the plot
 output$plot <- renderPlotly({
 	req(length(input$rikishi) > 0)
 
@@ -81,6 +88,7 @@ output$plot <- renderPlotly({
 		filter(rikishi1 %in% input$rikishi | rikishi2 %in% input$rikishi) %>% 
 		plot_ly(
 			color = ~paste0(rikishi1, "-", rikishi2),
+			colors = "Paired",
 			x = ~as.POSIXct(ts)
 		) %>% 
 		add_trace(
