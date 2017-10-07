@@ -120,7 +120,8 @@ output$plot <- renderPlotly({
 				rangemode = "tozero",
 				title = ""
 			)
-		) %>% config(
+		) %>% 
+		config(
 			collaborate = FALSE,
 			displaylogo = FALSE,
 			modeBarButtonsToRemove = c(
