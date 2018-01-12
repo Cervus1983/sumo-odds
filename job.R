@@ -1,20 +1,31 @@
 library(httr)
 
+raw_html <- content(
+	GET("https://www.betmarathon.com/en/betting/Sumo/?menu=954952"),
+	"text"
+)
 
-# parses raw HTML and returns tibble with odds, if any
-source("extract-odds.R")
+# raw HTML <-> odds & outrights
+source("betmarathon-parse.R")
 
-odds <- extract_odds(
-	content(
-		GET("https://www.betmarathon.com/en/betting/Sumo/?menu=954952"),
-		"text"
+# creates new file or appends to existing one
+save_to_folder <- function(data, folder) if (!is.null(data)) {
+	file_path <- paste0(folder, "/", format(Sys.Date(), "%Y%m"), ".csv")
+	
+	if (file.exists(file_path)) write_csv(
+		data,
+		file_path,
+		append = TRUE
+	) else write_csv(
+		data,
+		file_path
 	)
-)
+}
 
+raw_html %>% 
+	extract_odds() %>% 
+	save_to_folder("odds")
 
-# append new data to <year><month>.csv
-if (!is.null(odds)) write_csv(
-	odds,
-	path = paste(format(Sys.Date(), "%Y%m"), "csv", sep = "."),
-	append = TRUE
-)
+raw_html %>% 
+	extract_outrights() %>% 
+	save_to_folder("outrights")
