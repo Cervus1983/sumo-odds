@@ -37,3 +37,4 @@ vignettes/*.pdf
 *.knit.md
 
 rsconnect/
+.Rproj.user
