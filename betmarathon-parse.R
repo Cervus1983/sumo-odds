@@ -23,12 +23,16 @@ extract_odds <- function(raw_html) {
 
 # parses raw HTML and returns tibble with outrights, if any
 extract_outrights <- function(raw_html) {
-	tmp <- raw_html %>% 
-		read_html() %>% 
-		html_node("table.outright-table") %>% 
-		html_table()
+	tmp <- tryCatch(
+		raw_html %>% 
+			read_html() %>% 
+			html_node("table.outright-table") %>% 
+			html_table(),
+		error = function(e) {},
+		warning = function(w) {}
+	)
 	
-	if (ncol(tmp) %% 2 == 0 & nrow(tmp) > 0) {
+	if (!is.null(tmp) && ncol(tmp) %% 2 == 0 && nrow(tmp) > 0) {
 		# multiple Name/Price columns
 		if (ncol(tmp) > 2) tmp <- do.call(
 			rbind,
