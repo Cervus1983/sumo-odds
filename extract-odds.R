@@ -1,3 +1,4 @@
+library(rvest)
 library(stringr)
 library(tidyverse)
 
@@ -17,6 +18,28 @@ extract_odds <- function(raw_html) {
 		mutate_at(vars(contains("odds")), as.numeric) %>% 
 		mutate(ts = format(Sys.time())) %>% 
 		filter(complete.cases(.))
+}
+
+
+# parses raw HTML and returns tibble with outrights, if any
+extract_outrights <- function(raw_html) {
+	tmp <- raw_html %>% 
+		read_html() %>% 
+		html_node("table.outright-table") %>% 
+		html_table()
+	
+	if (ncol(tmp) %% 2 == 0 & nrow(tmp) > 0) {
+		# multiple Name/Price columns
+		if (ncol(tmp) > 2) {
+			do.call(
+				rbind,
+				lapply(
+					1:(ncol(tmp) / 2),
+					function(x) tmp[, (x * 2 - 1):(x * 2)]
+				)
+			)
+		} else tmp
+	}
 }
 
 
