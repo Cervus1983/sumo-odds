@@ -1,3 +1,4 @@
+library(rvest)
 library(stringr)
 library(tidyverse)
 
@@ -20,9 +21,31 @@ extract_odds <- function(raw_html) {
 }
 
 
+# parses raw HTML and returns tibble with outrights, if any
+extract_outrights <- function(raw_html) {
+	tmp <- raw_html %>% 
+		read_html() %>% 
+		html_node("table.outright-table") %>% 
+		html_table()
+	
+	if (ncol(tmp) %% 2 == 0 & nrow(tmp) > 0) {
+		# multiple Name/Price columns
+		if (ncol(tmp) > 2) tmp <- do.call(
+			rbind,
+			lapply(
+				1:(ncol(tmp) / 2),
+				function(x) tmp[, (x * 2 - 1):(x * 2)]
+			)
+		)
+
+		tmp %>% mutate(ts = format(Sys.time()))
+	}
+}
+
+
 # example: no odds found (e.g. no ongoing tournament)
-extract_odds(readRDS("sample-html/sample-html-empty.rds"))
+# extract_odds(readRDS("sample-html/sample-html-empty.rds"))
 
 
 # example: odds found
-extract_odds(readRDS("sample-html/sample-html-with-odds.rds"))
+# extract_odds(readRDS("sample-html/sample-html-with-odds.rds"))
