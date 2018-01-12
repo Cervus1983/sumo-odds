@@ -1,12 +1,17 @@
 ---
 title: "Sumo odds (scraped from Marathonbet)"
-output: 
+resource_files:
+- csv/201705.csv
+- csv/201707.csv
+runtime: shiny
+output:
   flexdashboard::flex_dashboard:
     navbar:
-      - { title: "Marathonbet", href: "https://www.marathonbet.com/en/betting/Sumo/?menu=954952" }
-      - { title: "Author", href: "https://github.com/Cervus1983" }
+    - href: https://www.marathonbet.com/en/betting/Sumo/?menu=954952
+      title: Marathonbet
+    - href: https://github.com/Cervus1983
+      title: Author
     source_code: embed
-runtime: shiny
 ---
 
 
@@ -70,7 +75,7 @@ output$rikishi_selector <- renderUI({
 				group_by(favourite) %>% 
 				summarise(mean(odds)) %>% 
 				arrange(`mean(odds)`) %>% 
-				pull(favourite) %>% 
+				.$favourite %>% 
 				head(1)
 		)
 	)
