@@ -22,9 +22,15 @@ save_to_folder <- function(data, folder) if (!is.null(data)) {
 	)
 }
 
+# odds (individual bouts)
+if (!dir.exists("odds")) dir.create("odds")
+
 raw_html %>% 
 	extract_odds() %>% 
 	save_to_folder("odds")
+
+# outrights (tournament winner)
+if (!dir.exists("outrights")) dir.create("outrights")
 
 raw_html %>% 
 	extract_outrights() %>% 
