@@ -1,9 +1,6 @@
+# scrape betmarathon.com
 library(httr)
-
-raw_html <- content(
-	GET("https://www.betmarathon.com/en/betting/Sumo/?menu=954952"),
-	"text"
-)
+raw_html <- content(GET("https://www.betmarathon.com/en/betting/Sumo/?menu=954952"), "text")
 
 # raw HTML <-> odds & outrights
 source("betmarathon-parse.R")
