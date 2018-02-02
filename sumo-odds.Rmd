@@ -1,14 +1,11 @@
 ---
 title: "Sumo odds (scraped from Marathonbet)"
-resource_files:
-- csv/201705.csv
-- csv/201707.csv
 runtime: shiny
 output:
   flexdashboard::flex_dashboard:
     navbar:
-    - href: https://www.marathonbet.com/en/betting/Sumo/?menu=954952
-      title: Marathonbet
+    - href: https://data.world/cervus/sumo-wrestling-betting-odds
+      title: Data
     - href: https://github.com/Cervus1983
       title: Author
     source_code: embed
@@ -24,32 +21,64 @@ library(tidyverse)
 ```
 
 
+```{r include=FALSE}
+library(data.world)
+set_config(cfg_env(auth_token_var = "DW_API_TOKEN"))
+
+options(stringsAsFactors = FALSE)
+
+# wrapper for data frame concatenation
+dfapply <- function(...) do.call(rbind, lapply(...))
+
+# downloads entire data set into single data frame
+dataset_as_data_frame <- function(dataset_name) {
+	dataset <- paste(Sys.getenv("DW_USER"), dataset_name, sep = "/")
+	dfapply(
+		map_chr(get_dataset(dataset)$files, "name"),
+		function(file_name) download_file_as_data_frame(dataset, file_name)
+	)
+}
+
+#load("all_odds.RData")
+all_odds <- dataset_as_data_frame("sumo-wrestling-betting-odds") %>% 
+	mutate(basho = substr(ts, 1, 7))
+```
+
+
 ```{r}
-# file selector (csv/*.csv)
-output$file_selector <- renderUI({
+# drop-down list of basho (tournaments)
+output$basho_selector <- renderUI({
 	selectInput(
-		inputId = "file_name",
-		label = "File with odds:",
-		choices = rev(
-			list.files(
-				path = "csv",
-				pattern = "^\\d{6}\\.csv$"
-			)
-		)
+		inputId = "basho",
+		label = "Basho:",
+		choices = all_odds %>% pull(basho) %>% unique() %>% rev()
 	)
 })
 ```
 
 
 ```{r}
-# read & deduplicate selected CSV file
+# odds _changes_ for selected basho
 odds <- reactive({
-	req(input$file_name)
+	req(input$basho)
 	
-	read_csv(paste("csv", input$file_name, sep = "/")) %>% 
+	all_odds %>% 
+		filter(basho == input$basho) %>% 
 		group_by(rikishi1, rikishi2) %>% 
 		arrange(ts) %>% 
-		mutate(odds1_lag = lag(odds1), odds1_lead = lead(odds1), odds2_lag = lag(odds2), odds2_lead = lead(odds2)) %>% 
+		mutate(
+			# get rid of extra decimals
+			odds1 = round(odds1, 2),
+			odds2 = round(odds2, 2),
+			# deal with <date>T<time>Z format
+			ts = ts %>% sub("T", " ", .) %>% sub("Z", "", .) %>% as.POSIXct(),
+			# look for changes
+			odds1_lag = lag(odds1),
+			odds1_lead = lead(odds1),
+			odds2_lag = lag(odds2),
+			odds2_lead = lead(odds2)
+		) %>% 
+		ungroup() %>% 
 		filter(is.na(odds1_lag) | is.na(odds2_lag) | is.na(odds1_lead) | is.na(odds2_lead) | odds1 != odds1_lag | odds2 != odds2_lag) %>% 
 		select(rikishi1, odds1, rikishi2, odds2, ts)
 })
@@ -57,16 +86,17 @@ odds <- reactive({
 
 
 ```{r}
-# checkbox for each rikishi (top dog is selected initially)
+# checkboxes for rikishi (wrestlers)
 output$rikishi_selector <- renderUI({
 	req(odds())
 	
 	list(
 		br(),
-		checkboxGroupInput(
+		selectInput(
 			inputId = "rikishi",
-			label = "Rikishi to show:",
+			label = "Rikishi:",
 			choices = c(odds()$rikishi1, odds()$rikishi2) %>% unique() %>% sort(),
+			# top dog is selected initially
 			selected = odds() %>% 
 				transmute(
 					favourite = ifelse(odds1 < odds2, rikishi1, rikishi2),
@@ -77,7 +107,8 @@ output$rikishi_selector <- renderUI({
 				arrange(`mean(odds)`) %>% 
 				.$favourite %>% 
 				head(1)
-		)
+		),
+		br()
 	)
 })
 ```
@@ -148,7 +179,7 @@ Column {.sidebar}
 -----------------------------------------------------------------------
 
 ```{r}
-uiOutput("file_selector")
+uiOutput("basho_selector")
 uiOutput("rikishi_selector")
 ```
 
