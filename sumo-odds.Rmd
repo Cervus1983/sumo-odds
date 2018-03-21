@@ -39,9 +39,8 @@ dataset_as_data_frame <- function(dataset_name) {
 	)
 }
 
-#load("all_odds.RData")
-all_odds <- dataset_as_data_frame("sumo-wrestling-betting-odds") %>% 
-	mutate(basho = substr(ts, 1, 7))
+load("all_odds.RData")
+#all_odds <- dataset_as_data_frame("sumo-wrestling-betting-odds") %>% mutate(basho = substr(ts, 1, 7))
 ```
 
 
