@@ -25,6 +25,7 @@ parse_1xbet <- function(raw_html) {
 	) df %>% 
 		select(one_of(columns)) %>% 
 		spread(betname, coef) %>% 
+		mutate_at(1, as.integer) %>% 
 		mutate_at(4:5, as.numeric) %>% 
 		arrange(gameid)
 }
