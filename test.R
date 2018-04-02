@@ -11,7 +11,7 @@ source("parser/marathonbet.R")
 
 # offline
 "sample-html" %>% 
-	list.files(full.names = TRUE) %>% 
+	list.files(pattern = "marathonbet", full.names = TRUE) %>% 
 	sapply(parse_marathonbet)
 
 
